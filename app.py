@@ -1,4 +1,5 @@
 import requests, os
+from datetime import datetime, timedelta
 
 # Constants
 PRIVACY_API_ENDPOINT = "https://api.privacy.com/v1/"
@@ -13,29 +14,41 @@ def get_ynab_transactions():
         "Authorization": f"Bearer {YNAB_AUTH_TOKEN}",
         "Content-Type": "application/json"
     }
-
     response = requests.get(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions", headers=headers)
     data = response.json()
-
-    # Filter for transactions from Privacy.com
     privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"]]
-
-    print(privacy_transactions)  # <--- Add this line to inspect the response
-    
     return privacy_transactions
 
 # Get detailed transaction info from Privacy.com
-def get_privacy_transaction_details(date, amount):
+def get_privacy_transaction_details(date, ynab_amount):
     headers = {
-        "Authorization": f"Bearer {PRIVACY_AUTH_TOKEN}",
-        "Content-Type": "application/json"
+        "Authorization": f"api-key {PRIVACY_AUTH_TOKEN}",
+        "Accept": "application/json"
     }
 
-    # You might need to adjust this based on the actual structure and capabilities of the Privacy.com API
-    response = requests.get(f"{PRIVACY_API_ENDPOINT}transaction?date={date}&amount={amount}", headers=headers)
+    # Convert the date to the desired 8601 format
+    txn_date = datetime.strptime(date, "%Y-%m-%d")
+    begin_date = txn_date.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Start of the day
+    end_date = (txn_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # End of the day
+    
+    # Fetching the list of transactions
+    response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size=50", headers=headers)
     data = response.json()
+    
+    
+    print("Privacy API response:", data)  # Let's print and inspect the data
 
-    return data
+    # Convert ynab amount to privacy.com format
+    privacy_amount = abs(int(ynab_amount)) // 10  # Convert milli units to cent units
+
+    # Find the transaction with the matching amount
+    for txn in data["data"]:
+        if txn["amount"] == privacy_amount:
+            print(f"Found transaction: {txn['merchant']['descriptor']}")
+            return txn["merchant"]["descriptor"]
+
+    # If no transaction is found
+    return None
 
 # Update YNAB transaction
 def update_ynab_transaction(transaction_id, memo):
@@ -43,29 +56,24 @@ def update_ynab_transaction(transaction_id, memo):
         "Authorization": f"Bearer {YNAB_AUTH_TOKEN}",
         "Content-Type": "application/json"
     }
-
     payload = {
         "transaction": {
             "memo": memo
         }
     }
-
     response = requests.put(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions/{transaction_id}", headers=headers, json=payload)
     return response.status_code == 200
 
 # Main routine
 def main():
     ynab_transactions = get_ynab_transactions()
-    exit() # <--- Remove this line to continue
     for txn in ynab_transactions:
         date = txn["date"]
         amount = txn["amount"]
-        privacy_details = get_privacy_transaction_details(date, amount)
-        
-        # Assuming 'description' is a field in the returned privacy details. Adjust if necessary.
-        memo = privacy_details.get("description", "")
-        update_ynab_transaction(txn["id"], memo)
+        memo = get_privacy_transaction_details(date, amount)
+
+        if memo:
+            update_ynab_transaction(txn["id"], memo)
 
 if __name__ == "__main__":
     main()
-
