@@ -1,0 +1,9 @@
+**.swp
+
+.vscode/
+
+venv/
+
+.envrc
+
+.env
