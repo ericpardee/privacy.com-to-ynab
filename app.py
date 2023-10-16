@@ -24,7 +24,7 @@ def get_ynab_transactions():
     data = response.json()
 
     # Filter for transactions from Privacy.com
-    privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"]]
+    privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"] and txn["memo"]]
     debug_print(privacy_transactions)
     return privacy_transactions
 
