@@ -10,6 +10,5 @@ services:
         sync: false
       - key: YNAB_BUDGET_ID
         sync: false
-
     repo: https://github.com/ericpardee/privacy.com-to-ynab.git
     branch: main

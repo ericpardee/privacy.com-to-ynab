@@ -1,6 +1,20 @@
 # privacy.com-to-ynab
 
-Synchronize your Privacy.com transactions to YNAB effortlessly.
+Synchronize your [Privacy.com](https://privacy.com/) transactions to [You Need a Budget (YNAB)](https://www.ynab.com/) effortlessly.
+
+## Table of Contents
+
+- [One-Click Deploy](#one-click-deploy)
+- [Using Docker](#-using-docker)
+  - [Building the Image](#building-the-image)
+  - [Running the Container](#running-the-container)
+- [Running Locally](#-running-locally)
+  - [Setting up Environment Variables](#setting-up-environment-variables)
+  - [Running the Script](#running-the-script)
+- [Prerequisites](#prerequisites)
+- [Contributing](#contributing)
+- [Support & Contact](#support--contact)
+- [License](#license)
 
 ## One-Click Deploy
 
@@ -68,3 +82,19 @@ pip install -r requirements.txt
 ```sh
 python app.py
 ```
+
+## Prerequisites
+
+Ensure you have Python 3.11 and Docker installed on your machine.
+
+## Contributing
+
+Feedback and contributions are always welcome! Please open an issue or submit a pull request.
+
+## Support & Contact
+
+For any issues or inquiries, please open an issue on GitHub.
+
+## License
+
+This project is licensed under [MIT License](LICENSE).

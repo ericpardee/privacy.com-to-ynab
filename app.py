@@ -1,4 +1,6 @@
-import requests, os
+import requests
+import os
+import sys
 from datetime import datetime, timedelta
 
 # Constants
@@ -8,6 +10,8 @@ PRIVACY_AUTH_TOKEN = os.environ.get('PRIVACY_API_TOKEN') or "PRIVACY_API_TOKEN"
 YNAB_AUTH_TOKEN = os.environ.get('YNAB_API_TOKEN') or "YNAB_API_TOKEN"
 YNAB_BUDGET_ID = os.environ.get('YNAB_BUDGET_ID') or "YNAB_BUDGET_ID"
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
+PRIVACY_DESCRIPTOR = os.environ.get('PRIVACY_DESCRIPTOR', 'Pwp*privacy.com') # how privacy.com transactions appear in YNAB
+PRIVACY_PAGE_SIZE = int(os.environ.get('PRIVACY_PAGE_SIZE', '50')) # how many transactions to fetch from privacy.com at a time
 
 def debug_print(*args, **kwargs):
     """Prints only if DEBUG flag is set."""
@@ -20,13 +24,17 @@ def get_ynab_transactions():
         "Authorization": f"Bearer {YNAB_AUTH_TOKEN}",
         "Content-Type": "application/json"
     }
-    response = requests.get(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions", headers=headers)
-    data = response.json()
+    try:
+        response = requests.get(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions", headers=headers)
+        response.raise_for_status()  # Raise an error if the response contains an HTTP error status
+        data = response.json()
 
-    # Filter for transactions from Privacy.com, where memo is None or empty string
-    privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"] and txn["memo"] in [None, ""]]
-    debug_print("YNAB privacy transactions:\n", privacy_transactions)
-    return privacy_transactions
+        privacy_transactions = [txn for txn in data["data"]["transactions"] if PRIVACY_DESCRIPTOR in txn["payee_name"] and txn["memo"] in [None, ""]]
+        debug_print("YNAB privacy transactions:\n", privacy_transactions)
+        return privacy_transactions
+    except requests.RequestException as e:
+        print(f"Error fetching transactions from YNAB: {e}")
+        sys.exit(1)
 
 # Get detailed transaction info from Privacy.com
 def get_privacy_transaction_details(date, ynab_amount):
@@ -41,10 +49,10 @@ def get_privacy_transaction_details(date, ynab_amount):
     end_date = (txn_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # End of the day
     
     # Fetching the list of transactions
-    response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size=50", headers=headers)
+    response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
     data = response.json()
     
-    debug_print("Privacy API response:\n", data)  # Let's print and inspect the data
+    debug_print("Privacy API response:\n", data)
 
     # Convert ynab amount to privacy.com format
     privacy_amount = abs(int(ynab_amount)) // 10  # Convert milli units to cent units
@@ -70,8 +78,11 @@ def update_ynab_transaction(transaction_id, memo):
             "memo": memo
         }
     }
-    response = requests.put(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions/{transaction_id}", headers=headers, json=payload)
-    return response.status_code == 200
+    try:
+        response = requests.put(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions/{transaction_id}", headers=headers, json=payload)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        print(f"Error updating YNAB transaction {transaction_id}: {e}")
 
 # Main routine
 def main():

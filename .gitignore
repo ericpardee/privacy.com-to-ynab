@@ -7,3 +7,6 @@ venv/
 .envrc
 
 .env
+
+.DS_Store
+

@@ -1,6 +1,7 @@
 # TODO
 
 - [ ] Update YNAB Category for known merchants
-- [ ] Add Error Handling
+- [ ] Add error Handling
 - [ ] Add more Documentation
-- [ ] Add Performance optimizations to handle a large number of transactions
+- [ ] Add performance optimizations to handle a large number of transactions
+- [ ] Add tests
