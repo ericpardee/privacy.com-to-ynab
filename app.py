@@ -18,7 +18,11 @@ def debug_print(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs, end='\n\n')
 
-# Connect to YNAB and fetch transactions
+def ynab_to_privacy_amount(ynab_amount):
+    """Convert YNAB's milliunit format to Privacy.com's integer representation."""
+    return abs(int(ynab_amount)) // 10
+
+# Connect to YNAB and fetch transactions matching the privacy descriptor
 def get_ynab_transactions():
     headers = {
         "Authorization": f"Bearer {YNAB_AUTH_TOKEN}",
@@ -36,35 +40,32 @@ def get_ynab_transactions():
         print(f"Error fetching transactions from YNAB: {e}")
         sys.exit(1)
 
-# Get detailed transaction info from Privacy.com
-def get_privacy_transaction_details(date, ynab_amount):
+def fetch_privacy_transactions(start_date, end_date):
     headers = {
         "Authorization": f"api-key {PRIVACY_AUTH_TOKEN}",
         "Accept": "application/json"
     }
-
-    # Convert the date to the desired 8601 format
-    txn_date = datetime.strptime(date, "%Y-%m-%d")
-    begin_date = txn_date.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # Start of the day
-    end_date = (txn_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # End of the day
     
-    # Fetching the list of transactions
-    response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
-    data = response.json()
-    
-    debug_print("Privacy API response:\n", data)
+    begin_date = start_date.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    end_date = (end_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-    # Convert ynab amount to privacy.com format
-    privacy_amount = abs(int(ynab_amount)) // 10  # Convert milli units to cent units
-    debug_print(f"Privacy amount: {privacy_amount}")
+    try:
+        response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
+        response.raise_for_status() # Ensure valid response
+        data = response.json()
+        debug_print(f"Privacy transactions between {begin_date} and {end_date}:\n", data)
+        return data["data"]
+    except requests.RequestException as e:
+        print(f"Error fetching transactions from Privacy.com: {e}")
+        sys.exit(1)
 
-    # Find the transaction with the matching amount
-    for txn in data["data"]:
+# Find the privacy transaction description based on the ynab_amount from the locally fetched list
+def get_privacy_transaction_details(privacy_amount, privacy_transactions):
+    for index, txn in enumerate(privacy_transactions):
         if txn["amount"] == privacy_amount:
-            debug_print(f"Found transaction: {txn['merchant']['descriptor']}")
+            # Remove the transaction from the list and return the descriptor
+            privacy_transactions.pop(index)
             return txn["merchant"]["descriptor"]
-
-    # If no transaction is found
     return None
 
 # Update YNAB transaction
@@ -87,13 +88,21 @@ def update_ynab_transaction(transaction_id, memo):
 # Main routine
 def main():
     ynab_transactions = get_ynab_transactions()
+    if not ynab_transactions:
+        return
+
+    dates = [datetime.strptime(txn["date"], "%Y-%m-%d") for txn in ynab_transactions]
+    start_date = min(dates)
+    end_date = max(dates)
+    privacy_transactions = fetch_privacy_transactions(start_date, end_date)
+
     for txn in ynab_transactions:
-        date = txn["date"]
-        amount = txn["amount"]
-        memo = get_privacy_transaction_details(date, amount)
+        privacy_amount = ynab_to_privacy_amount(txn["amount"])
+        memo = get_privacy_transaction_details(privacy_amount, privacy_transactions)
 
         if memo:
             update_ynab_transaction(txn["id"], memo)
+            debug_print(f"Updated transaction {txn['id']} on {txn['date']} for amount ${privacy_amount / 100:.2f} with memo {memo}")
 
 if __name__ == "__main__":
     main()
