@@ -12,7 +12,7 @@ DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 def debug_print(*args, **kwargs):
     """Prints only if DEBUG flag is set."""
     if DEBUG:
-        print(*args, **kwargs)
+        print(*args, **kwargs, end='\n\n')
 
 # Connect to YNAB and fetch transactions
 def get_ynab_transactions():
@@ -23,9 +23,9 @@ def get_ynab_transactions():
     response = requests.get(f"{YNAB_API_ENDPOINT}budgets/{YNAB_BUDGET_ID}/transactions", headers=headers)
     data = response.json()
 
-    # Filter for transactions from Privacy.com
-    privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"] and txn["memo"]]
-    debug_print(privacy_transactions)
+    # Filter for transactions from Privacy.com, where memo is None or empty string
+    privacy_transactions = [txn for txn in data["data"]["transactions"] if "Pwp*privacy.com" in txn["payee_name"] and txn["memo"] in [None, ""]]
+    debug_print("YNAB privacy transactions:\n", privacy_transactions)
     return privacy_transactions
 
 # Get detailed transaction info from Privacy.com
@@ -44,10 +44,11 @@ def get_privacy_transaction_details(date, ynab_amount):
     response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size=50", headers=headers)
     data = response.json()
     
-    debug_print("Privacy API response:", data)  # Let's print and inspect the data
+    debug_print("Privacy API response:\n", data)  # Let's print and inspect the data
 
     # Convert ynab amount to privacy.com format
     privacy_amount = abs(int(ynab_amount)) // 10  # Convert milli units to cent units
+    debug_print(f"Privacy amount: {privacy_amount}")
 
     # Find the transaction with the matching amount
     for txn in data["data"]:

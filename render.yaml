@@ -1,0 +1,15 @@
+services:
+  - type: cron
+    name: privacy.com-to-ynab
+    runtime: docker
+    schedule: "0 3 * * *" # This runs the job every day at 3am UTC. Modify according to your needs.
+    envVars:
+      - key: PRIVACY_API_TOKEN
+        sync: false
+      - key: YNAB_API_TOKEN
+        sync: false
+      - key: YNAB_BUDGET_ID
+        sync: false
+
+    repo: https://github.com/ericpardee/privacy.com-to-ynab.git
+    branch: main

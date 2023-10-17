@@ -2,6 +2,10 @@
 
 Synchronize your Privacy.com transactions to YNAB effortlessly.
 
+## One-Click Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ericpardee/privacy.com-to-ynab)
+
 ## 🐳 Using Docker
 
 ### Building the Image
