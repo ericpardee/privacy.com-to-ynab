@@ -95,10 +95,14 @@ def get_privacy_transaction_details(privacy_amount, privacy_transactions):
         Merchant descriptor for the matching transaction or None if not found.
     """
     for index, txn in enumerate(privacy_transactions):
+        if "amount" not in txn:  # Check if 'amount' key exists
+            continue        
         if txn["amount"] == privacy_amount:
-            # Remove the matched transaction from the list to prevent multiple matches
-            privacy_transactions.pop(index)
-            return txn["merchant"]["descriptor"]
+            # Check for 'merchant' and its nested 'descriptor' key
+            if "merchant" in txn and "descriptor" in txn["merchant"] and isinstance(txn["merchant"]["descriptor"], str):
+                # Remove the matched transaction from the list to prevent multiple matches
+                privacy_transactions.pop(index)
+                return txn["merchant"]["descriptor"]
     return None
 
 def update_ynab_transaction(transaction_id, memo):
