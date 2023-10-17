@@ -4,6 +4,7 @@ Synchronize your [Privacy.com](https://privacy.com/) transactions to [You Need a
 
 ## Table of Contents
 
+- [Requirements](#requirements)
 - [One-Click Deploy](#one-click-deploy)
 - [Using Docker](#-using-docker)
   - [Building the Image](#building-the-image)
@@ -16,9 +17,21 @@ Synchronize your [Privacy.com](https://privacy.com/) transactions to [You Need a
 - [Support & Contact](#support--contact)
 - [License](#license)
 
+## Requirements
+
+1. [Privacy.com API Key](https://privacy-com.readme.io/docs/getting-started): Found within your [Privacy Account page](https://app.privacy.com/account#api-key).
+2. YNAB Personal Access Token:
+   - [Sign into YNAB](https://app.ynab.com/settings) and go to the "Account Settings" page and then to [the "Developer Settings" page](https://app.ynab.com/settings/developer).
+   - Under the "Personal Access Tokens" section, click "New Token", enter your password and click "Generate" to get an access token.
+3. YNAB Budget ID: Open the [YNAB account](https://app.ynab.com/), select your Budget. Your URL should look like `https://app.ynab.com/zzzzzzzz-zzzz-zzzz-zzzz-zzzzzzzzzzzz/budget`. The `yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy` portion is your Budget ID.
+
 ## One-Click Deploy
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/ericpardee/privacy.com-to-ynab)
+
+This application is designed to operate as a [cron job on Render](https://render.com/docs/cronjobs), with a default schedule to run every day at 3am UTC. You can adjust this frequency as needed in the cron settings within render.com UI after deployment.
+
+This approach was selected over an alternative that would involve leveraging a [Privacy.com Webhook](https://support.privacy.com/hc/en-us/articles/360039147274-Privacy-API) combined with a continuously active [Render web service](https://render.com/docs/web-services). This configuration offers enhanced security due to its unidirectional communication: with only outgoing requests and no incoming traffic, it effectively minimizes the attack surface, thereby eliminating potential avenues for exploitation. However, the trade-off with this setup is that synchronization happens just once daily by default.
 
 ## 🐳 Using Docker
 
@@ -85,7 +98,7 @@ python app.py
 
 ## Prerequisites
 
-Ensure you have Python 3.11 and Docker installed on your machine.
+Ensure you have Python 3.11 and/or Docker installed on your machine.
 
 ## Contributing
 
