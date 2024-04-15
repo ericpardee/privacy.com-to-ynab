@@ -91,11 +91,13 @@ def fetch_privacy_transactions(start_date, end_date):
         data = response.json()
         # Exclude transactions that have "authorization_amount": 0, as they are not actual transactions
         filtered_transactions = [transaction for transaction in data["data"] if transaction['authorization_amount'] != 0]
-        transaction_count = len(filtered_transactions)
+        # Sorting transactions in ascending order based on the 'created' timestamp
+        sorted_transactions = sorted(filtered_transactions, key=lambda x: x['created'])
+        transaction_count = len(sorted_transactions)
         # Formatting the response data for more readable output
-        formatted_data = json.dumps(filtered_transactions, indent=2)
+        formatted_data = json.dumps(sorted_transactions, indent=2)
         debug_print(f"Privacy transactions between {begin_date} and {end_date} ({transaction_count} transactions):\n", formatted_data)
-        return filtered_transactions
+        return sorted_transactions
     except requests.RequestException as e:
         print(f"Error fetching transactions from Privacy.com: {e}")
         sys.exit(1)
