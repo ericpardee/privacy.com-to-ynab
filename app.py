@@ -69,14 +69,14 @@ def get_ynab_transactions():
 
 def fetch_privacy_transactions(start_date, end_date):
     """
-    Fetch transactions from Privacy.com within a specified date range.
+    Fetch transactions from Privacy.com within a specified date range, considering multiple pages.
 
     Args:
         start_date: Start date for transaction range.
         end_date: End date for transaction range.
 
     Returns:
-        List of transactions from Privacy.com within the specified date range.
+        List of transactions from Privacy.com within the specified date range, sorted in ascending order by creation date.
     """
     headers = {
         "Authorization": f"api-key {PRIVACY_AUTH_TOKEN}",
@@ -84,23 +84,35 @@ def fetch_privacy_transactions(start_date, end_date):
     }
     begin_date = start_date.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     end_date = (end_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    try:
-        # Fetch Privacy.com transactions in the date range where YNAB transactions were marked as Privacy.com transactions and not updated
-        response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        # Exclude transactions that have "authorization_amount": 0, as they are not actual transactions
-        filtered_transactions = [transaction for transaction in data["data"] if transaction['authorization_amount'] != 0]
-        # Sorting transactions in ascending order based on the 'created' timestamp
-        sorted_transactions = sorted(filtered_transactions, key=lambda x: x['created'])
-        transaction_count = len(sorted_transactions)
-        # Formatting the response data for more readable output
-        formatted_data = json.dumps(sorted_transactions, indent=2)
-        debug_print(f"Privacy transactions between {begin_date} and {end_date} ({transaction_count} transactions):\n", formatted_data)
-        return sorted_transactions
-    except requests.RequestException as e:
-        print(f"Error fetching transactions from Privacy.com: {e}")
-        sys.exit(1)
+    page = 1
+    all_transactions = []
+
+    while True:
+        try:
+            response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page={page}&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
+            response.raise_for_status()
+            data = response.json()
+            current_page_transactions = data["data"]
+            # Filter out non-actual transactions (where authorization_amount is 0)
+            filtered_transactions = [transaction for transaction in current_page_transactions if transaction['authorization_amount'] != 0]
+
+            if not current_page_transactions:
+                # Break the loop if no more transactions are returned
+                break
+
+            all_transactions.extend(filtered_transactions)
+            page += 1  # Increment the page number and repeat the request
+        except requests.RequestException as e:
+            print(f"Error fetching transactions from Privacy.com: {e}")
+            sys.exit(1)
+
+    # Sort transactions in ascending order based on the 'created' timestamp
+    sorted_transactions = sorted(all_transactions, key=lambda x: x['created'])
+    transaction_count = len(sorted_transactions)
+    # Formatting the response data for more readable output
+    formatted_data = json.dumps(sorted_transactions, indent=2)
+    debug_print(f"Privacy transactions between {begin_date} and {end_date} ({transaction_count} transactions):\n", formatted_data)
+    return sorted_transactions
 
 def get_privacy_transaction_details(privacy_amount, privacy_transactions):
     """
