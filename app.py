@@ -85,11 +85,17 @@ def fetch_privacy_transactions(start_date, end_date):
     begin_date = start_date.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     end_date = (end_date + timedelta(days=1) - timedelta(seconds=1)).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
     try:
+        # Fetch Privacy.com transactions in the date range where YNAB transactions were marked as Privacy.com transactions and not updated
         response = requests.get(f"{PRIVACY_API_ENDPOINT}transactions?begin={begin_date}&end={end_date}&page=1&page_size={PRIVACY_PAGE_SIZE}", headers=headers)
         response.raise_for_status()
         data = response.json()
-        debug_print(f"Privacy transactions between {begin_date} and {end_date}:\n", data)
-        return data["data"]
+        # Exclude transactions that have "authorization_amount": 0, as they are not actual transactions
+        filtered_transactions = [transaction for transaction in data["data"] if transaction['authorization_amount'] != 0]
+        transaction_count = len(filtered_transactions)
+        # Formatting the response data for more readable output
+        formatted_data = json.dumps(filtered_transactions, indent=2)
+        debug_print(f"Privacy transactions between {begin_date} and {end_date} ({transaction_count} transactions):\n", formatted_data)
+        return filtered_transactions
     except requests.RequestException as e:
         print(f"Error fetching transactions from Privacy.com: {e}")
         sys.exit(1)
