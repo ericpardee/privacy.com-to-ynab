@@ -23,6 +23,11 @@ PRIVACY_DESCRIPTOR = os.environ.get('PRIVACY_DESCRIPTOR', 'Pwp*privacy.com')
 # Setting the number of transactions to fetch from privacy.com at once
 PRIVACY_PAGE_SIZE = int(os.environ.get('PRIVACY_PAGE_SIZE', '50'))
 
+# Privacy.com account types (Privacy Personal, Privacy Pro, Privacy Premium)
+PRIVACY_ACCOUNT_TYPE = os.environ.get('PRIVACY_ACCOUNT_TYPE', 'Privacy Personal')
+PRIVACY_PERSONAL_FOREIGN_FEE = 0.03  # 3% foreign transaction fee for Privacy Personal accounts
+PRIVACY_MINIMUM_FEE = 0.50  # Minimum fee for Privacy Personal accounts
+
 def debug_print(*args, **kwargs):
     """Utility function to print debug messages if the DEBUG flag is set."""
     if DEBUG:
@@ -93,12 +98,22 @@ def fetch_privacy_transactions(start_date, end_date):
             response.raise_for_status()
             data = response.json()
             current_page_transactions = data["data"]
-            # Filter out non-actual transactions (where authorization_amount is 0)
-            filtered_transactions = [transaction for transaction in current_page_transactions if transaction['authorization_amount'] != 0]
+            # Filter and modify transactions
+            filtered_transactions = []
+            for transaction in current_page_transactions:
+                if transaction['authorization_amount'] != 0:  # Filter out non-actual transactions
+                    if PRIVACY_ACCOUNT_TYPE == "Privacy Personal" and transaction['merchant']['country'] != "USA":
+                        # Calculate potential fee with minimum
+                        potential_fee = transaction['amount'] * PRIVACY_PERSONAL_FOREIGN_FEE
+                        if potential_fee < PRIVACY_MINIMUM_FEE:
+                            potential_fee = PRIVACY_MINIMUM_FEE
+                        # Apply the calculated fee
+                        transaction['amount'] += round(potential_fee)
+                        debug_print(f"FOREIGN {transaction}")
+                    filtered_transactions.append(transaction)
 
             if not current_page_transactions:
-                # Break the loop if no more transactions are returned
-                break
+                break  # Break if no more transactions are returned
 
             all_transactions.extend(filtered_transactions)
             page += 1  # Increment the page number and repeat the request
@@ -109,7 +124,6 @@ def fetch_privacy_transactions(start_date, end_date):
     # Sort transactions in ascending order based on the 'created' timestamp
     sorted_transactions = sorted(all_transactions, key=lambda x: x['created'])
     transaction_count = len(sorted_transactions)
-    # Formatting the response data for more readable output
     formatted_data = json.dumps(sorted_transactions, indent=2)
     debug_print(f"Privacy transactions between {begin_date} and {end_date} ({transaction_count} transactions):\n", formatted_data)
     return sorted_transactions
