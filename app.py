@@ -2,6 +2,7 @@ import requests
 import os
 import sys
 from datetime import datetime, timedelta
+import json
 
 # Constants
 # API endpoints for Privacy.com and YNAB
@@ -50,7 +51,17 @@ def get_ynab_transactions():
         response.raise_for_status()
         data = response.json()
         privacy_transactions = [txn for txn in data["data"]["transactions"] if PRIVACY_DESCRIPTOR in txn["payee_name"] and txn["memo"] in [None, ""]]
-        debug_print("YNAB privacy transactions:\n", privacy_transactions)
+        # Count of transactions
+        transaction_count = len(privacy_transactions)
+        if transaction_count > 1:
+            start_date = privacy_transactions[0]['date']
+            end_date = privacy_transactions[-1]['date']
+            message = f"YNAB privacy transactions ({transaction_count} total) between {start_date} and {end_date}:\n"
+        else:
+            message = f"YNAB privacy transactions ({transaction_count} total):\n"
+        # Formatting the transactions for more readable output
+        formatted_transactions = json.dumps(privacy_transactions, indent=2)
+        debug_print(message, formatted_transactions)
         return privacy_transactions
     except requests.RequestException as e:
         print(f"Error fetching transactions from YNAB: {e}")
